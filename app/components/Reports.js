@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-export default function AnimalReport({ onClose, photoUri }) {
+export default function AnimalReport({ onClose, photoUri, data }) {
   return (
     <View style={styles.popUp}>
       <View style={styles.head}>
@@ -24,42 +24,46 @@ export default function AnimalReport({ onClose, photoUri }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.section}>
           <Text style={styles.label}>
-            Name: <Text style={styles.value}>Goat</Text>
+            Name: <Text style={styles.value}>{data?.name}</Text>
           </Text>
           <Text style={styles.label}>
-            Category: <Text style={styles.subText}>Livestock</Text>
+            Category: <Text style={styles.subText}>{data?.category}</Text>
           </Text>
         </View>
 
-        <Image source={require("../assets/goat.png")} style={styles.image} />
+        <Image source={{ uri: photoUri }} style={styles.image} />
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Health Analysis</Text>
           <Text>
-            🩺 Vitality Score: <Text style={styles.value}>9.1</Text>
+            🩺 Vitality Score:{" "}
+            <Text style={styles.value}>{data?.vitality_score}</Text>
           </Text>
           <Text>
-            🟢 Status: <Text style={styles.green}>Healthy</Text>
+            🟢 Status: <Text style={styles.green}>{data?.status}</Text>
           </Text>
           <Text style={styles.indicatorTitle}>📋 Indicators:</Text>
-          <Text>✅ Coat Condition: Smooth</Text>
-          <Text>✅ Eyes: Bright and Clear</Text>
-          <Text>✅ Activity Level: High</Text>
+          <Text> Coat Condition: {data?.indicators?.coat_condition}</Text>
+          <Text> Eyes: {data?.indicators?.eyes}</Text>
+          <Text> Activity Level: {data?.indicators?.activity_level} </Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nutrition (Per 100g meat)</Text>
-          <Text>🔥 Calories: 143 kcal</Text>
-          <Text>🥩 Protein: 27 g</Text>
-          <Text>🧈 Fat: 3 g</Text>
-          <Text>🧪 Iron: 3.7 mg</Text>
-          <Text>💧 Water: 69%</Text>
+          <Text>🔥 Calories: {data?.nutrition?.calories}</Text>
+          <Text>🥩 Protein: {data?.nutrition?.protein}</Text>
+          <Text>🧈 Fat: {data?.nutrition?.fat}</Text>
+          <Text>🧪 Iron: {data?.nutrition?.iron}</Text>
+          <Text>💧 Water: {data?.nutrition?.water}</Text>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Remarks</Text>
-          <Text>🔴 No signs of disease or malnutrition.</Text>
-          <Text>⚠️ Recommend regular hoof trimming.</Text>
+          <View style={{ flexDirection:"column", gap:16}}>
+            {data?.remarks?.map((remark, index) => (
+            <Text key={index}>{remark}</Text>
+          ))}
+          </View>
         </View>
 
         <View style={styles.buttonRow}>
@@ -134,8 +138,8 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 16,
-    flexDirection:"column",
-    gap:4
+    flexDirection: "column",
+    gap: 4,
   },
   sectionTitle: {
     fontWeight: "600",
@@ -184,3 +188,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
+
+// "category": "Mammal", "indicators": {"activity_level": "Minimal", "coat_condition": "Clean and well-groomed", "eyes": "Appears clear and alert"}, "name": "Boer Goat", "nutrition": {"calories": "143 kcal", "fat": "3 g", "iron": "3.7 mg", "protein": "27 g", "water": "69%"}, "remarks": ["Specimen appears to be in good physical condition with a healthy weight.", "A green tag is visible on the left ear, likely for park identification."], "status": "Healthy", "vitality_score"

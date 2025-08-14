@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
+import * as FileSystem from "expo-file-system";
 import { useEffect, useRef, useState } from "react";
 import {
   Button,
@@ -20,28 +21,115 @@ export default function App() {
   const [capturedPhoto, setCapturedPhoto] = useState(null);
   const [status, setStatus] = useState("idle");
   const [showReport, setShowReport] = useState(false);
+  const [report, setReport] = useState([]);
 
   useEffect(() => {
     if (status === "completed" && capturedPhoto) {
-      // Simulate sending to API after completion
       const sendToAPI = async () => {
         try {
-          console.log("📤 Sending photo to API...");
+          console.log("📤 Sending photo to Gemini API...");
 
-          // Simulate network delay
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          // Convert the captured image to Base64
+          const base64Image = await FileSystem.readAsStringAsync(
+            capturedPhoto,
+            {
+              encoding: FileSystem.EncodingType.Base64,
+            }
+          );
 
-          const response = await fetch("https://your-fake-api.com/analyze", {
-            method: "POST",
-            body: JSON.stringify({ image: capturedPhoto }),
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+          const prompt = `
+        You are an animal scan assistant. Given an image of an animal, return structured data in JSON format with the following fields:
 
-          console.log("✅ Sent to API (fake)");
+        {
+          "name": "string",
+          "category": "string",
+          "vitality_score": 9.5,
+          "status": "Healthy | Unhealthy",
+          "indicators": {
+            "coat_condition": "string (max 4 words)",
+            "eyes": "string (max 4 words)",
+            "activity_level": "None | Minimal | Moderate | High"
+          },
+          "nutrition": {
+            "calories": "string (e.g., '143 kcal')",
+            "protein": "string (e.g., '27 g')",
+            "fat": "string (e.g., '3 g')",
+            "iron": "string (e.g., '3.7 mg')",
+            "water": "string (e.g., '69%')"
+          },
+          "remarks": [
+            "string",
+            "string"
+          ]
+        }
+
+        Important: 
+        - vitality_score must be a number (not a string)
+        - Keep coat_condition and eyes descriptions short
+        - Respond ONLY with the JSON object, no extra words.
+        `;
+
+          const model = "models/gemini-2.5-pro";
+          const apiKey = "AIzaSyBhkiaWBCOx9pUSGIfNLFjGzdn4ugr_-bM";
+
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: prompt },
+                      {
+                        inlineData: {
+                          mimeType: "image/jpeg",
+                          data: base64Image,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              }),
+            }
+          );
+
+          const data = await response.json();
+          console.log("✅ Gemini API raw response:", data);
+
+          // Extract model's text output and parse JSON
+          let textResponse =
+            data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+
+          // Remove triple backticks and extra markers
+          textResponse = textResponse
+            .replace(/```json/i, "")
+            .replace(/```/g, "")
+            .trim();
+
+          let parsedReport;
+          try {
+            parsedReport = JSON.parse(textResponse);
+          } catch (err) {
+            console.error(
+              "⚠️ Failed to parse JSON from Gemini:",
+              err,
+              textResponse
+            );
+            parsedReport = null;
+          }
+
+          // Show the report with parsed data
           setShowReport(true);
-          // You can store result in state if needed
+
+          setReport(parsedReport);
+          console.log(JSON.stringify(parsedReport), "parsReport");
+
+          // Optional: Pass parsedReport to AnimalReport
+          // setReportData(parsedReport);
         } catch (error) {
           console.error("❌ API error:", error);
         }
@@ -87,8 +175,21 @@ export default function App() {
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        {/* Other components... */}
 
+        {showReport ? (
+         <>
+           <AnimalReport
+            photoUri={capturedPhoto ?? ""}
+            data={report}
+            onClose={() => {
+              setShowReport(false);
+              setCapturedPhoto(null);
+              setStatus("idle");
+            }}
+          />
+         </>
+        ):
+        (<>
         {/* ✅ Focus Scanner Brackets */}
         {status === "idle" && (
           <View style={styles.overlay}>
@@ -101,19 +202,7 @@ export default function App() {
           </View>
         )}
 
-        {status === "completed" && <AnimalReport photoUri={capturedPhoto} />}
-
-        {showReport && (
-          <AnimalReport
-            photoUri={capturedPhoto}
-            onClose={() => {
-              setShowReport(false);
-              setCapturedPhoto(null);
-              setStatus("idle");
-            }}
-          />
-        )}
-
+      
 
         {/* 📷 Captured Preview / Processing / Completed */}
         {status === "preview" && capturedPhoto && (
@@ -168,18 +257,22 @@ export default function App() {
           </BlurView>
         )}
 
-        <View style={styles.bottomPanel}>
-          <View style={styles.scanButtonWrapper}>
-            <TouchableOpacity
-              disabled={Boolean(capturedPhoto)}
-              onPress={takePicture}
-              style={styles.scanButton}
-            >
-              <MaterialIcons name="qr-code-scanner" size={30} color="white" />
-            </TouchableOpacity>
-            <Text style={styles.zoomText}>1x</Text>
+    
+          <View style={styles.bottomPanel}>
+            <View style={styles.scanButtonWrapper}>
+              <TouchableOpacity
+                disabled={Boolean(capturedPhoto)}
+                onPress={takePicture}
+                style={styles.scanButton}
+              >
+                <MaterialIcons name="qr-code-scanner" size={30} color="white" />
+              </TouchableOpacity>
+              <Text style={styles.zoomText}>1x</Text>
+            </View>
           </View>
-        </View>
+        
+        </>)
+        }
       </CameraView>
     </View>
   );
@@ -192,6 +285,7 @@ const LINE_WIDTH = 6;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: 24,
   },
   message: {
     textAlign: "center",
@@ -315,6 +409,7 @@ const styles = StyleSheet.create({
   bottomPanel: {
     position: "absolute",
     bottom: 0,
+    zIndex: 80,
     width: "100%",
     backgroundColor: "#fff",
     paddingTop: 20,
