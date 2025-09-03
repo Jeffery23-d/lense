@@ -70,7 +70,7 @@ export default function App() {
         `;
 
           const model = "models/gemini-2.5-pro";
-          const apiKey = "AIzaSyBhkiaWBCOx9pUSGIfNLFjGzdn4ugr_-bM";
+          const apiKey = "AIzaSyBPGhk4Wr6KHphxEHdVE3OsExazBtjA7W4";
 
           const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`,
